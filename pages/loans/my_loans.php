@@ -1,149 +1,204 @@
 <?php
 // pages/loans/my_loans.php
 
-require_role(['STUDENT']);
+require_once __DIR__ . '/../../lib/auth.php';
+require_once __DIR__ . '/../../config/db.php';
 
-$currentUser = get_current_user_data();
-$notice = '';
-$error  = '';
+requireLogin();
 
-// Handle return action
-$action = $_GET['action'] ?? null;
-$id     = $_GET['id'] ?? null;
+// Check if user is student
+$user = currentUser();
+if (!$user || $user['role'] !== 'STUDENT') {
+    header('Location: index.php');
+    exit;
+}
 
-if ($action === 'return' && $id && ctype_digit($id)) {
-    $loanId = (int) $id;
+$pdo = getDBConnection();
+$userId = $user['id'];
 
-    try {
-        // 1. Load the loan and make sure it belongs to this student and is not returned yet
-        $stmt = $pdo->prepare("
-            SELECT * FROM loans
-            WHERE id = :id AND user_id = :uid AND returned_date IS NULL
-        ");
-        $stmt->execute([
-            'id'  => $loanId,
-            'uid' => $currentUser['id'],
-        ]);
-        $loan = $stmt->fetch();
+// Detect loan table columns
+$loanCols = [];
+try {
+    $stmt = $pdo->query('SHOW COLUMNS FROM loans');
+    $loanCols = array_column($stmt->fetchAll(), 'Field');
+} catch (PDOException $e) {
+    $loanCols = [];
+}
 
-        if (!$loan) {
-            $error = 'Loan not found or already returned.';
-        } else {
-            // 2. Set returned_date
-            $updateLoan = $pdo->prepare("
-                UPDATE loans
-                SET returned_date = NOW()
-                WHERE id = :id
-            ");
-            $updateLoan->execute(['id' => $loanId]);
-
-            // 3. Set book status back to AVAILABLE
-            $updateBook = $pdo->prepare("
-                UPDATE books
-                SET status = 'AVAILABLE'
-                WHERE id = :book_id
-            ");
-            $updateBook->execute(['book_id' => $loan['book_id']]);
-
-            $notice = 'Book has been returned successfully.';
+// Find column names
+function findColumn($available, $candidates) {
+    foreach ($candidates as $name) {
+        if (in_array($name, $available, true)) {
+            return $name;
         }
+    }
+    return null;
+}
+
+$loanDateCol = findColumn($loanCols, ['loan_date', 'borrow_date', 'issued_date', 'created_at']);
+$dueDateCol  = findColumn($loanCols, ['due_date', 'return_due_date', 'expected_return_date']);
+$returnCol   = findColumn($loanCols, ['returned_at', 'return_date', 'returned_date']);
+$userIdCol   = findColumn($loanCols, ['user_id', 'borrower_id']);
+$bookIdCol   = findColumn($loanCols, ['book_id']);
+
+// Load user's loans
+$loans = [];
+if ($userIdCol !== null) {
+    try {
+        $loanDateExpr = $loanDateCol ? "l.`$loanDateCol`" : "NULL";
+        $dueDateExpr  = $dueDateCol ? "l.`$dueDateCol`" : "NULL";
+        $returnExpr   = $returnCol ? "l.`$returnCol`" : "NULL";
+        
+        $sql = "
+            SELECT 
+                l.id,
+                $loanDateExpr AS loan_date,
+                $dueDateExpr AS due_date,
+                $returnExpr AS returned_at,
+                b.title AS book_title,
+                b.author AS book_author,
+                b.isbn AS book_isbn
+            FROM loans l
+            LEFT JOIN books b ON " . ($bookIdCol ? "b.id = l.`$bookIdCol`" : "1=1") . "
+            WHERE l.`$userIdCol` = :uid
+            ORDER BY $loanDateExpr DESC
+        ";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(['uid' => $userId]);
+        $loans = $stmt->fetchAll();
     } catch (PDOException $e) {
-        $error = 'Error returning book: ' . htmlspecialchars($e->getMessage());
+        $loans = [];
     }
 }
 
-// Load all loans for this student
-try {
-    $stmt = $pdo->prepare("
-        SELECT l.*, b.title
-        FROM loans l
-        JOIN books b ON l.book_id = b.id
-        WHERE l.user_id = :uid
-        ORDER BY l.borrowed_date DESC
-    ");
-    $stmt->execute(['uid' => $currentUser['id']]);
-    $loans = $stmt->fetchAll();
-} catch (PDOException $e) {
-    $error = 'Error loading loans: ' . htmlspecialchars($e->getMessage());
-    $loans = [];
-}
+// Calculate stats
+$activeCount = 0;
+$overdueCount = 0;
 
-// Count active loans (for simple notification)
-$activeLoans = 0;
 foreach ($loans as $loan) {
-    if ($loan['returned_date'] === null) {
-        $activeLoans++;
+    $returned = $loan['returned_at'] ?? null;
+    $isActive = ($returned === null || $returned === '0000-00-00' || $returned === '0000-00-00 00:00:00');
+    
+    if ($isActive) {
+        $activeCount++;
+        
+        $dueDate = $loan['due_date'] ?? null;
+        if ($dueDate && strtotime($dueDate) < strtotime('today')) {
+            $overdueCount++;
+        }
     }
 }
 ?>
 
-<h1 class="mb-4">My Loans</h1>
+<div class="dashboard">
+    <div class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title">My Loans</h1>
+            <p class="dashboard-subtitle">
+                View and manage your borrowed books.
+            </p>
+        </div>
+    </div>
 
-<p class="mb-2">
-    Logged in as: <strong><?php echo htmlspecialchars($currentUser['name']); ?></strong>
-</p>
+    <!-- Stats Cards -->
+    <section class="dashboard-grid">
+        <div class="stat-card">
+            <div class="stat-label">Active Loans</div>
+            <div class="stat-value"><?php echo $activeCount; ?></div>
+            <div class="stat-caption">Books currently borrowed</div>
+        </div>
 
-<div class="alert alert-info">
-    You currently have <strong><?php echo $activeLoans; ?></strong> active loan(s).
+        <div class="stat-card">
+            <div class="stat-label">Overdue Loans</div>
+            <div class="stat-value"><?php echo $overdueCount; ?></div>
+            <div class="stat-caption">Books past due date</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">Total Loans</div>
+            <div class="stat-value"><?php echo count($loans); ?></div>
+            <div class="stat-caption">All-time loan history</div>
+        </div>
+    </section>
+
+    <!-- Loans Table -->
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title">Loan History</h2>
+                <p class="card-subtitle">
+                    All books you have borrowed.
+                </p>
+            </div>
+        </div>
+
+        <?php if (empty($loans)): ?>
+            <p class="text-muted">You haven't borrowed any books yet. Visit Browse Books to borrow your first book!</p>
+        <?php else: ?>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Book Title</th>
+                        <th>Author</th>
+                        <th>Loan Date</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($loans as $loan): ?>
+                        <?php
+                        $bookTitle = $loan['book_title'] ?? 'Unknown Book';
+                        $bookAuthor = $loan['book_author'] ?? 'Unknown Author';
+                        $loanDate = $loan['loan_date'] ?? '—';
+                        $dueDate = $loan['due_date'] ?? '—';
+                        $returned = $loan['returned_at'] ?? null;
+                        
+                        // Determine status
+                        $status = 'Returned';
+                        $statusClass = 'badge-blue';
+                        
+                        if ($returned === null || $returned === '0000-00-00' || $returned === '0000-00-00 00:00:00') {
+                            // Check if overdue
+                            if ($dueDate !== '—' && strtotime($dueDate) < strtotime('today')) {
+                                $status = 'Overdue';
+                                $statusClass = 'badge-red';
+                            } else {
+                                $status = 'Active';
+                                $statusClass = 'badge-green';
+                            }
+                        }
+                        ?>
+                        <tr>
+                            <td><strong><?php echo htmlspecialchars($bookTitle); ?></strong></td>
+                            <td><?php echo htmlspecialchars($bookAuthor); ?></td>
+                            <td><?php echo htmlspecialchars($loanDate); ?></td>
+                            <td><?php echo htmlspecialchars($dueDate); ?></td>
+                            <td>
+                                <span class="badge <?php echo $statusClass; ?>">
+                                    <?php echo htmlspecialchars($status); ?>
+                                </span>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </section>
+
+    <?php if ($overdueCount > 0): ?>
+    <!-- Overdue Warning -->
+    <section class="card" style="border-left: 4px solid #b91c1c;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 24px;">⚠️</span>
+            <div>
+                <h3 style="margin: 0; color: #b91c1c; font-size: 16px;">Overdue Books</h3>
+                <p style="margin: 4px 0 0; font-size: 14px; color: #6b7280;">
+                    You have <?php echo $overdueCount; ?> overdue book(s). Please return them as soon as possible to avoid late fees.
+                </p>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
 </div>
-
-<p>
-    <a href="index.php?page=student_books" class="btn btn-outline-primary">Browse Books</a>
-</p>
-
-<?php if ($notice): ?>
-    <div class="alert alert-success">
-        <?php echo $notice; ?>
-    </div>
-<?php endif; ?>
-
-<?php if ($error): ?>
-    <div class="alert alert-danger">
-        <?php echo $error; ?>
-    </div>
-<?php endif; ?>
-
-<?php if (empty($loans)): ?>
-    <div class="alert alert-info">
-        You have no loan history.
-    </div>
-<?php else: ?>
-    <table class="table table-striped table-bordered">
-        <thead class="table-dark">
-            <tr>
-                <th>#</th>
-                <th>Book Title</th>
-                <th>Borrowed Date</th>
-                <th>Returned Date / Status</th>
-                <th style="width: 160px;">Action</th>
-            </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($loans as $index => $loan): ?>
-            <tr>
-                <td><?php echo $index + 1; ?></td>
-                <td><?php echo htmlspecialchars($loan['title']); ?></td>
-                <td><?php echo htmlspecialchars($loan['borrowed_date']); ?></td>
-                <td>
-                    <?php if ($loan['returned_date'] === null): ?>
-                        <span class="badge bg-warning text-dark">Active</span>
-                    <?php else: ?>
-                        Returned at: <?php echo htmlspecialchars($loan['returned_date']); ?>
-                    <?php endif; ?>
-                </td>
-                <td>
-                    <?php if ($loan['returned_date'] === null): ?>
-                        <a href="index.php?page=my_loans&action=return&id=<?php echo $loan['id']; ?>"
-                           class="btn btn-sm btn-success"
-                           onclick="return confirm('Return this book?');">
-                            Return
-                        </a>
-                    <?php else: ?>
-                        <span class="text-muted">No action</span>
-                    <?php endif; ?>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
-<?php endif; ?>

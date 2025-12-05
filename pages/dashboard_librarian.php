@@ -1,11 +1,17 @@
 <?php
-// pages/users/dashboard_librarian.php
+// pages/dashboard_librarian.php
 
-require_once __DIR__ . '/../../lib/auth.php';
-require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../lib/auth.php';
+require_once __DIR__ . '/../config/db.php';
 
-requireLogin('LIBRARIAN');
+requireLogin();
 
+// Check if user is librarian
+$user = currentUser();
+if (!$user || $user['role'] !== 'LIBRARIAN') {
+    header('Location: index.php');
+    exit;
+}
 $pdo = getDBConnection();
 
 /**
@@ -40,17 +46,6 @@ $totalBooks      = lib_safeCount($pdo, 'books');
 $totalLoans      = lib_safeCount($pdo, 'loans');
 $totalUsers      = lib_safeCount($pdo, 'users');
 
-// Reservations (if table exists)
-$reservationsCount = 0;
-try {
-    $stmt = $pdo->query("SHOW TABLES LIKE 'reservations'");
-    if ($stmt->fetch()) {
-        $reservationsCount = lib_safeCount($pdo, 'reservations');
-    }
-} catch (PDOException $e) {
-    $reservationsCount = 0;
-}
-
 // ---------- LOANS TABLE INSPECTION ----------
 $loanCols = [];
 try {
@@ -69,7 +64,7 @@ $bookIdCol   = lib_findColumn($loanCols, ['book_id', 'copy_id']);
 // ---------- LOAN STATS ----------
 $activeLoans       = 0;
 $overdueLoans      = 0;
-$dueSoonLoans      = 0; // due within next 7 days
+$dueSoonLoans      = 0;
 
 try {
     if ($returnCol !== null) {
@@ -149,8 +144,14 @@ try {
         <div>
             <h1 class="dashboard-title">Librarian Dashboard</h1>
             <p class="dashboard-subtitle">
-                Quick overview of books, loans, and reservations you manage.
+                Quick overview of books, loans, and library activity.
             </p>
+        </div>
+        <div class="dashboard-welcome">
+            <span class="text-muted">Logged in as</span>
+            <span class="dashboard-user-name">
+                <?php echo htmlspecialchars($user['full_name']); ?>
+            </span>
         </div>
     </div>
 
@@ -175,14 +176,14 @@ try {
         </div>
 
         <div class="stat-card">
-            <div class="stat-label">Reservations</div>
-            <div class="stat-value"><?php echo $reservationsCount; ?></div>
-            <div class="stat-caption">Pending reservations (if enabled)</div>
+            <div class="stat-label">Due Soon</div>
+            <div class="stat-value"><?php echo $dueSoonLoans; ?></div>
+            <div class="stat-caption">Due within next 7 days</div>
         </div>
     </section>
 
-    <!-- Secondary cards -->
-    <section class="dashboard-grid" style="margin-top:16px;">
+    <!-- Secondary stats -->
+    <section class="dashboard-grid">
         <div class="stat-card">
             <div class="stat-label">Total Loans</div>
             <div class="stat-value"><?php echo $totalLoans; ?></div>
@@ -194,16 +195,10 @@ try {
             <div class="stat-value"><?php echo $totalUsers; ?></div>
             <div class="stat-caption">Students & staff with accounts</div>
         </div>
-
-        <div class="stat-card">
-            <div class="stat-label">Due in Next 7 Days</div>
-            <div class="stat-value"><?php echo $dueSoonLoans; ?></div>
-            <div class="stat-caption">Loans that should be returned soon</div>
-        </div>
     </section>
 
     <!-- Active loans table -->
-    <section class="card" style="margin-top:18px;">
+    <section class="card">
         <div class="card-header">
             <div>
                 <h2 class="card-title">Currently Borrowed Books</h2>
@@ -230,8 +225,8 @@ try {
                     <tr>
                         <td><?php echo htmlspecialchars($row['book_title'] ?? 'Unknown book'); ?></td>
                         <td><?php echo htmlspecialchars($row['user_name'] ?? 'Unknown user'); ?></td>
-                        <td><?php echo htmlspecialchars($row['loan_date'] ?? ''); ?></td>
-                        <td><?php echo htmlspecialchars($row['due_date'] ?? ''); ?></td>
+                        <td><?php echo htmlspecialchars($row['loan_date'] ?? '—'); ?></td>
+                        <td><?php echo htmlspecialchars($row['due_date'] ?? '—'); ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

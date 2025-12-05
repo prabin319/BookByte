@@ -130,11 +130,11 @@ body {
 .app-logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
 .app-logo-icon {
-    font-size: 24px;
+    font-size: 32px;
 }
 
 .app-logo-text {
@@ -143,16 +143,16 @@ body {
 }
 
 .app-name {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
     color: #111827;
-    line-height: 1.2;
+    line-height: 1.3;
 }
 
 .app-subtitle {
-    font-size: 11px;
+    font-size: 12px;
     color: #6b7280;
-    line-height: 1.2;
+    line-height: 1.3;
 }
 
 .topbar-right {
@@ -698,6 +698,44 @@ input[disabled] {
 /* =====================================================
    DASHBOARD STATS
 ======================================================== */
+.dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.dashboard-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 20px;
+}
+
+.dashboard-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 4px;
+}
+
+.dashboard-subtitle {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.dashboard-welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.dashboard-user-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+}
+
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
