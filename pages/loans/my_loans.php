@@ -1,5 +1,5 @@
 <?php
-// pages/loans/my_loans_enhanced.php - WITH RENEWAL & FINES
+// pages/loans/my_loans.php - FIXED VERSION (No Warnings)
 
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../config/db.php';
@@ -15,10 +15,10 @@ if (!$user || $user['role'] !== 'STUDENT') {
 $pdo = getDBConnection();
 $userId = $user['id'];
 
-// System Settings (can be moved to database)
-$FINE_PER_DAY = 5.00; // Fine amount per day overdue
-$MAX_RENEWALS = 2; // Maximum times a book can be renewed
-$RENEWAL_DAYS = 14; // Days to extend on renewal
+// System Settings
+$FINE_PER_DAY = 5.00;
+$MAX_RENEWALS = 2;
+$RENEWAL_DAYS = 14;
 
 $message = '';
 $messageType = '';
@@ -28,7 +28,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['renew_loan_id'])) {
     $loanId = (int)$_POST['renew_loan_id'];
     
     try {
-        // Get loan details
         $stmt = $pdo->prepare("
             SELECT l.*, b.title 
             FROM loans l
@@ -40,11 +39,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['renew_loan_id'])) {
         
         if ($loan) {
             $renewalCount = (int)($loan['renewal_count'] ?? 0);
-            $dueDate = $loan['due_date'];
+            $dueDate = $loan['due_date'] ?? null;
             $isReturned = !empty($loan['returned_at']) && $loan['returned_at'] !== '0000-00-00 00:00:00';
-            $isOverdue = strtotime($dueDate) < strtotime('today');
+            $isOverdue = $dueDate ? (strtotime($dueDate) < strtotime('today')) : false;
             
-            // Validation checks
             if ($isReturned) {
                 $messageType = 'error';
                 $message = 'This book has already been returned.';
@@ -54,8 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['renew_loan_id'])) {
             } elseif ($isOverdue) {
                 $messageType = 'error';
                 $message = 'Cannot renew overdue books. Please return the book and pay any fines.';
+            } elseif (!$dueDate) {
+                $messageType = 'error';
+                $message = 'Cannot renew: Due date not set for this loan.';
             } else {
-                // Check if book is reserved by someone else
                 $stmt = $pdo->prepare("
                     SELECT COUNT(*) as reserved_count 
                     FROM reservations 
@@ -68,7 +68,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['renew_loan_id'])) {
                     $messageType = 'error';
                     $message = 'This book is reserved by another student. Renewal not allowed.';
                 } else {
-                    // Perform renewal
                     $newDueDate = date('Y-m-d', strtotime($dueDate . " + $RENEWAL_DAYS days"));
                     $newRenewalCount = $renewalCount + 1;
                     
@@ -99,60 +98,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['renew_loan_id'])) {
     }
 }
 
-// Detect loan table columns
-$loanCols = [];
-try {
-    $stmt = $pdo->query('SHOW COLUMNS FROM loans');
-    $loanCols = array_column($stmt->fetchAll(), 'Field');
-} catch (PDOException $e) {
-    $loanCols = [];
-}
-
-function findColumn($available, $candidates) {
-    foreach ($candidates as $name) {
-        if (in_array($name, $available, true)) {
-            return $name;
-        }
-    }
-    return null;
-}
-
-$loanDateCol = findColumn($loanCols, ['loan_date', 'borrow_date', 'issued_date', 'created_at']);
-$dueDateCol  = findColumn($loanCols, ['due_date', 'return_due_date', 'expected_return_date']);
-$returnCol   = findColumn($loanCols, ['returned_at', 'return_date', 'returned_date']);
-$userIdCol   = findColumn($loanCols, ['user_id', 'borrower_id']);
-$bookIdCol   = findColumn($loanCols, ['book_id']);
-
 // Load user's loans
 $loans = [];
-if ($userIdCol !== null) {
-    try {
-        $loanDateExpr = $loanDateCol ? "l.`$loanDateCol`" : "NULL";
-        $dueDateExpr  = $dueDateCol ? "l.`$dueDateCol`" : "NULL";
-        $returnExpr   = $returnCol ? "l.`$returnCol`" : "NULL";
-        
-        $sql = "
-            SELECT 
-                l.*,
-                $loanDateExpr AS loan_date,
-                $dueDateExpr AS due_date,
-                $returnExpr AS returned_at,
-                b.title AS book_title,
-                b.author AS book_author,
-                b.isbn AS book_isbn,
-                b.cover_url AS book_cover
-            FROM loans l
-            LEFT JOIN books b ON " . ($bookIdCol ? "b.id = l.`$bookIdCol`" : "1=1") . "
-            WHERE l.`$userIdCol` = :uid
-            ORDER BY $loanDateExpr DESC
-        ";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute(['uid' => $userId]);
-        $loans = $stmt->fetchAll();
-    } catch (PDOException $e) {
-        $loans = [];
-    }
+try {
+    $sql = "
+        SELECT 
+            l.*,
+            b.title AS book_title,
+            b.author AS book_author,
+            b.isbn AS book_isbn,
+            b.cover_url AS book_cover
+        FROM loans l
+        LEFT JOIN books b ON b.id = l.book_id
+        WHERE l.user_id = :uid
+        ORDER BY l.id DESC
+    ";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute(['uid' => $userId]);
+    $loans = $stmt->fetchAll();
+} catch (PDOException $e) {
+    $loans = [];
 }
 
 // Calculate fines and stats
@@ -161,35 +127,51 @@ $overdueCount = 0;
 $totalFines = 0;
 
 foreach ($loans as &$loan) {
-    $returned = $loan['returned_at'] ?? null;
+    // Initialize all variables with defaults
+    $loan['loan_date'] = $loan['loan_date'] ?? $loan['borrow_date'] ?? $loan['borrowed_date'] ?? null;
+    $loan['due_date'] = $loan['due_date'] ?? $loan['return_due_date'] ?? null;
+    $loan['returned_at'] = $loan['returned_at'] ?? $loan['return_date'] ?? $loan['returned_date'] ?? null;
+    
+    $returned = $loan['returned_at'];
     $isActive = ($returned === null || $returned === '0000-00-00' || $returned === '0000-00-00 00:00:00');
     
     $loan['fine'] = 0;
     $loan['is_overdue'] = false;
     $loan['days_overdue'] = 0;
+    $loan['days_until_due'] = 0;
+    $loan['renewal_count'] = (int)($loan['renewal_count'] ?? 0);
     
     if ($isActive) {
         $activeCount++;
         
-        $dueDate = $loan['due_date'] ?? null;
-        if ($dueDate && strtotime($dueDate) < strtotime('today')) {
-            $loan['is_overdue'] = true;
-            $daysOverdue = floor((strtotime('today') - strtotime($dueDate)) / 86400);
-            $loan['days_overdue'] = $daysOverdue;
-            $loan['fine'] = $daysOverdue * $FINE_PER_DAY;
-            $overdueCount++;
-            $totalFines += $loan['fine'];
+        $dueDate = $loan['due_date'];
+        if ($dueDate && $dueDate !== '0000-00-00') {
+            $dueDateTimestamp = strtotime($dueDate);
+            $todayTimestamp = strtotime('today');
+            $daysDiff = floor(($dueDateTimestamp - $todayTimestamp) / 86400);
+            
+            if ($daysDiff < 0) {
+                // Overdue
+                $loan['is_overdue'] = true;
+                $daysOverdue = abs($daysDiff);
+                $loan['days_overdue'] = $daysOverdue;
+                $loan['fine'] = $daysOverdue * $FINE_PER_DAY;
+                $overdueCount++;
+                $totalFines += $loan['fine'];
+            } else {
+                // Not overdue yet
+                $loan['days_until_due'] = $daysDiff;
+            }
         }
     }
     
-    $loan['renewal_count'] = (int)($loan['renewal_count'] ?? 0);
-    $loan['can_renew'] = $isActive && !$loan['is_overdue'] && $loan['renewal_count'] < $MAX_RENEWALS;
+    $loan['can_renew'] = $isActive && !$loan['is_overdue'] && $loan['renewal_count'] < $MAX_RENEWALS && $loan['due_date'];
 }
 unset($loan);
 ?>
 
 <style>
-/* Enhanced My Loans Styles with Fines */
+/* Enhanced My Loans Styles */
 .my-loans-enhanced {
     max-width: 1400px;
     margin: 0 auto;
@@ -368,6 +350,64 @@ unset($loan);
     margin-bottom: 16px;
 }
 
+/* Due Date Section */
+.loan-due-date-section {
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 2px solid #e5e7eb;
+}
+
+.loan-due-date-section.due-soon {
+    background: #fef3c7;
+    border-color: #fbbf24;
+}
+
+.loan-due-date-section.overdue {
+    background: #fee2e2;
+    border-color: #ef4444;
+}
+
+.due-date-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.due-date-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #6b7280;
+    letter-spacing: 0.5px;
+}
+
+.due-date-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: #111827;
+}
+
+.due-date-countdown {
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.due-date-countdown.urgent {
+    color: #dc2626;
+}
+
+.due-date-countdown.warning {
+    color: #f59e0b;
+}
+
+.due-date-countdown.safe {
+    color: #10b981;
+}
+
 .loan-details-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -459,6 +499,7 @@ unset($loan);
     margin-top: auto;
     padding-top: 16px;
     border-top: 1px solid #f3f4f6;
+    flex-wrap: wrap;
 }
 
 .btn-renew {
@@ -476,7 +517,7 @@ unset($loan);
     gap: 8px;
 }
 
-.btn-renew:hover {
+.btn-renew:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
@@ -624,9 +665,9 @@ unset($loan);
                 $bookTitle = $loan['book_title'] ?? 'Unknown Book';
                 $bookAuthor = $loan['book_author'] ?? 'Unknown Author';
                 $bookCover = $loan['book_cover'] ?? null;
-                $loanDate = $loan['loan_date'] ?? '—';
-                $dueDate = $loan['due_date'] ?? '—';
-                $returned = $loan['returned_at'] ?? null;
+                $loanDate = $loan['loan_date'] ? date('M d, Y', strtotime($loan['loan_date'])) : 'N/A';
+                $dueDate = $loan['due_date'];
+                $returned = $loan['returned_at'];
                 $renewalCount = $loan['renewal_count'];
                 $renewalsLeft = $MAX_RENEWALS - $renewalCount;
                 
@@ -634,6 +675,7 @@ unset($loan);
                 $isOverdue = $loan['is_overdue'];
                 $fine = $loan['fine'];
                 $daysOverdue = $loan['days_overdue'];
+                $daysUntilDue = $loan['days_until_due'];
                 $canRenew = $loan['can_renew'];
                 
                 // Status
@@ -649,6 +691,26 @@ unset($loan);
                     $status = 'Active';
                     $statusClass = 'status-active';
                     $statusIcon = '📖';
+                }
+                
+                // Due date section styling
+                $dueSectionClass = '';
+                $countdownClass = 'safe';
+                $countdownText = '';
+                
+                if ($isActive && $dueDate && $dueDate !== '0000-00-00') {
+                    if ($isOverdue) {
+                        $dueSectionClass = 'overdue';
+                        $countdownClass = 'urgent';
+                        $countdownText = "⚠️ Overdue by {$daysOverdue} day" . ($daysOverdue != 1 ? 's' : '');
+                    } elseif ($daysUntilDue <= 3) {
+                        $dueSectionClass = 'due-soon';
+                        $countdownClass = 'warning';
+                        $countdownText = "⏰ Due in {$daysUntilDue} day" . ($daysUntilDue != 1 ? 's' : '');
+                    } else {
+                        $countdownClass = 'safe';
+                        $countdownText = "✓ {$daysUntilDue} days remaining";
+                    }
                 }
                 ?>
                 
@@ -668,17 +730,30 @@ unset($loan);
                             <h3 class="loan-book-title"><?php echo htmlspecialchars($bookTitle); ?></h3>
                             <div class="loan-book-author">by <?php echo htmlspecialchars($bookAuthor); ?></div>
 
+                            <!-- Due Date Display -->
+                            <?php if ($isActive && $dueDate && $dueDate !== '0000-00-00'): ?>
+                                <div class="loan-due-date-section <?php echo $dueSectionClass; ?>">
+                                    <div class="due-date-header">
+                                        <span class="due-date-label">📅 Return By</span>
+                                        <div class="status-badge-loan <?php echo $statusClass; ?>">
+                                            <span><?php echo $statusIcon; ?></span>
+                                            <span><?php echo $status; ?></span>
+                                        </div>
+                                    </div>
+                                    <div class="due-date-value"><?php echo date('M d, Y', strtotime($dueDate)); ?></div>
+                                    <div class="due-date-countdown <?php echo $countdownClass; ?>">
+                                        <?php echo $countdownText; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
                             <div class="loan-details-grid">
                                 <div class="loan-detail-item">
                                     <div class="detail-label">Loan Date</div>
-                                    <div class="detail-value"><?php echo htmlspecialchars($loanDate); ?></div>
+                                    <div class="detail-value"><?php echo $loanDate; ?></div>
                                 </div>
 
-                                <div class="loan-detail-item">
-                                    <div class="detail-label">Due Date</div>
-                                    <div class="detail-value"><?php echo htmlspecialchars($dueDate); ?></div>
-                                </div>
-
+                                <?php if (!$isActive): ?>
                                 <div class="loan-detail-item">
                                     <div class="detail-label">Status</div>
                                     <div class="status-badge-loan <?php echo $statusClass; ?>">
@@ -686,6 +761,7 @@ unset($loan);
                                         <span><?php echo $status; ?></span>
                                     </div>
                                 </div>
+                                <?php endif; ?>
 
                                 <?php if ($renewalCount > 0): ?>
                                 <div class="loan-detail-item">

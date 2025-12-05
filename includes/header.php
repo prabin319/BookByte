@@ -72,6 +72,14 @@ function isActiveNav($currentPage, $targetPages)
                     </a>
                 <?php endif; ?>
 
+                <?php if ($userRole === 'ADMIN'): ?>
+    <a href="index.php?page=library_cards"
+       class="nav-item<?php echo isActiveNav($page, ['library_cards']); ?>">
+        <span class="nav-icon">🎫</span>
+        <span class="nav-label">Library Cards</span>
+    </a>
+<?php endif; ?>
+
                 <?php if ($userRole === 'ADMIN' || $userRole === 'LIBRARIAN'): ?>
                     <a href="index.php?page=books_manage"
                        class="nav-item<?php echo isActiveNav($page, ['books_manage', 'books']); ?>">

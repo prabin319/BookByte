@@ -48,6 +48,8 @@ $routes = [
     'dashboard_librarian' => __DIR__ . '/../pages/dashboard_librarian.php',
     'dashboard_student'   => __DIR__ . '/../pages/dashboard_student.php',
 
+    // Add this line in the routes array (around line 50):
+'library_cards'       => __DIR__ . '/../pages/library_cards/manage.php',
     // Books
     'books'               => __DIR__ . '/../pages/books/list.php',
     'books_manage'        => __DIR__ . '/../pages/books/manage_list.php',

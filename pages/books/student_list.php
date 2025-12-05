@@ -1,5 +1,5 @@
 <?php
-// pages/books/student_list.php
+// pages/books/student_list.php - UPDATED WITH PROPER AVAILABILITY CHECK
 
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../config/db.php';
@@ -62,32 +62,38 @@ function getBookStatus($book) {
     return 'UNKNOWN';
 }
 
-// Check if book is actually available (has copies AND not all borrowed)
+// UPDATED: More accurate availability check
 function isBookActuallyAvailable($book, $pdo) {
     $bookId = $book['id'] ?? 0;
-    $copies = getBookCopies($book);
+    $availableCopies = getBookCopies($book);
     
-    if ($copies === null || $copies <= 0) {
+    // First check: if available_copies is NULL or 0, definitely not available
+    if ($availableCopies === null || $availableCopies <= 0) {
         return false;
     }
     
-    // Double-check by counting active loans
+    // Second check: Count actual active loans
     try {
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as active_loans 
             FROM loans 
             WHERE book_id = :bid 
-            AND (returned_date IS NULL OR returned_date = '0000-00-00' OR returned_date = '0000-00-00 00:00:00')
+            AND (returned_at IS NULL OR returned_at = '0000-00-00' OR returned_at = '0000-00-00 00:00:00')
         ");
         $stmt->execute([':bid' => $bookId]);
         $result = $stmt->fetch();
         $activeLoans = $result ? (int)$result['active_loans'] : 0;
         
-        // Book is available if copies > active loans
-        return $copies > $activeLoans;
+        // Get total copies
+        $totalCopies = isset($book['total_copies']) ? (int)$book['total_copies'] : $availableCopies;
+        
+        // Book is available only if (total copies - active loans) > 0
+        $realAvailable = $totalCopies - $activeLoans;
+        return $realAvailable > 0;
+        
     } catch (PDOException $e) {
-        // Fallback to copies check
-        return $copies > 0;
+        // Fallback to available_copies check
+        return $availableCopies > 0;
     }
 }
 
@@ -215,14 +221,10 @@ sort($categories);
                     $coverUrl = htmlspecialchars($book['cover_url'] ?? '');
                     $description = htmlspecialchars($book['description'] ?? '');
                     
-                    // Check actual availability
+                    // UPDATED: Use accurate availability check
                     $actuallyAvailable = isBookActuallyAvailable($book, $pdo);
                     
-                    // Status badge
-                    $statusClass = 'status-unknown';
-                    $statusLabel = 'Unknown';
-                    $statusIcon = '❓';
-                    
+                    // Status badge based on REAL availability
                     if ($actuallyAvailable) {
                         $statusClass = 'status-available';
                         $statusLabel = 'Available';
@@ -266,7 +268,7 @@ sort($categories);
                                 </div>
                                 <div class="detail-item">
                                     <span class="detail-icon">📦</span>
-                                    <span class="detail-text"><?php echo $copies !== null ? $copies . ' copies' : 'N/A'; ?></span>
+                                    <span class="detail-text"><?php echo $copies !== null ? $copies . ' left' : 'N/A'; ?></span>
                                 </div>
                             </div>
 
