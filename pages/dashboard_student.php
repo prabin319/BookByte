@@ -238,10 +238,10 @@ try {
                             <?php endif; ?>
                             
                             <div class="book-actions">
-                                <button class="btn-book btn-book-primary">
+                                <a href="index.php?page=book_detail&id=<?php echo (int)$book['id']; ?>" class="btn-book btn-book-primary">
                                     <span>View Details</span>
                                     <span class="btn-arrow">→</span>
-                                </button>
+                                </a>
                             </div>
                         </div>
                     </div>

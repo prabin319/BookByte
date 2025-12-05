@@ -62,6 +62,35 @@ function getBookStatus($book) {
     return 'UNKNOWN';
 }
 
+// Check if book is actually available (has copies AND not all borrowed)
+function isBookActuallyAvailable($book, $pdo) {
+    $bookId = $book['id'] ?? 0;
+    $copies = getBookCopies($book);
+    
+    if ($copies === null || $copies <= 0) {
+        return false;
+    }
+    
+    // Double-check by counting active loans
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as active_loans 
+            FROM loans 
+            WHERE book_id = :bid 
+            AND (returned_date IS NULL OR returned_date = '0000-00-00' OR returned_date = '0000-00-00 00:00:00')
+        ");
+        $stmt->execute([':bid' => $bookId]);
+        $result = $stmt->fetch();
+        $activeLoans = $result ? (int)$result['active_loans'] : 0;
+        
+        // Book is available if copies > active loans
+        return $copies > $activeLoans;
+    } catch (PDOException $e) {
+        // Fallback to copies check
+        return $copies > 0;
+    }
+}
+
 // Filter books
 $filteredBooks = array_filter($books, function($book) use ($search, $filterCategory) {
     $title = mb_strtolower(getBookTitle($book));
@@ -186,16 +215,19 @@ sort($categories);
                     $coverUrl = htmlspecialchars($book['cover_url'] ?? '');
                     $description = htmlspecialchars($book['description'] ?? '');
                     
+                    // Check actual availability
+                    $actuallyAvailable = isBookActuallyAvailable($book, $pdo);
+                    
                     // Status badge
                     $statusClass = 'status-unknown';
                     $statusLabel = 'Unknown';
                     $statusIcon = '❓';
                     
-                    if ($status === 'AVAILABLE') {
+                    if ($actuallyAvailable) {
                         $statusClass = 'status-available';
                         $statusLabel = 'Available';
                         $statusIcon = '✓';
-                    } elseif ($status === 'UNAVAILABLE' || $status === 'BORROWED') {
+                    } else {
                         $statusClass = 'status-unavailable';
                         $statusLabel = 'Unavailable';
                         $statusIcon = '✗';
@@ -252,10 +284,10 @@ sort($categories);
                                     <span class="status-icon"><?php echo $statusIcon; ?></span>
                                     <span><?php echo $statusLabel; ?></span>
                                 </div>
-                                <button class="btn-view-book" onclick="alert('View details for: <?php echo htmlspecialchars($title); ?>')">
+                                <a href="index.php?page=book_detail&id=<?php echo (int)($book['id'] ?? 0); ?>" class="btn-view-book">
                                     <span>View</span>
                                     <span class="view-arrow">→</span>
-                                </button>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -672,11 +704,13 @@ sort($categories);
     align-items: center;
     gap: 6px;
     transition: all 0.3s ease;
+    text-decoration: none;
 }
 
 .btn-view-book:hover {
     transform: translateX(4px);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    color: white;
 }
 
 .view-arrow {
