@@ -37,16 +37,16 @@ if ($user === null) {
     }
 }
 
-// route map
+// route map - FIXED PATHS
 $routes = [
     // Auth
     'login'               => __DIR__ . '/../pages/login.php',
 
-    // Home / dashboards
+    // Home / dashboards - CORRECTED PATHS
     'home'                => __DIR__ . '/../pages/home.php',
-    'dashboard_admin'     => __DIR__ . '/../pages/users/dashboard_admin.php',
-    'dashboard_librarian' => __DIR__ . '/../pages/users/dashboard_librarian.php',
-    'dashboard_student'   => __DIR__ . '/../pages/users/dashboard_student.php',
+    'dashboard_admin'     => __DIR__ . '/../pages/dashboard_admin.php',
+    'dashboard_librarian' => __DIR__ . '/../pages/dashboard_librarian.php',
+    'dashboard_student'   => __DIR__ . '/../pages/dashboard_student.php',
 
     // Books
     'books'               => __DIR__ . '/../pages/books/list.php',
@@ -120,18 +120,19 @@ if ($isLoginPage || $user === null): ?>
         </div>
     </div>
 <?php else: ?>
-    <div class="page-wrapper">
-        <?php
-        if (file_exists($contentFile)) {
-            require $contentFile;
-        } else {
-            echo '<div class="card"><h2>Page missing</h2>';
-            echo '<p>The requested page file was not found on the server.</p>';
-            echo '<p><code>' . htmlspecialchars($contentFile) . '</code></p>';
-            echo '</div>';
-        }
-        ?>
-    </div>
+    <?php
+    if (file_exists($contentFile)) {
+        require $contentFile;
+    } else {
+        echo '<div class="page-wrapper">';
+        echo '<div class="card"><h2>Page missing</h2>';
+        echo '<p>The requested page file was not found on the server.</p>';
+        echo '<p><strong>Looking for:</strong> <code>' . htmlspecialchars($contentFile) . '</code></p>';
+        echo '<p><strong>Page requested:</strong> <code>' . htmlspecialchars($page) . '</code></p>';
+        echo '</div>';
+        echo '</div>';
+    }
+    ?>
 <?php endif;
 
 // footer
