@@ -52,7 +52,7 @@ $routes = [
     'reminders'      => __DIR__ . '/../pages/reminders/manage.php',
     'fines'          => __DIR__ . '/../pages/fines/manage.php',
     'library_cards'       => __DIR__ . '/../pages/library_cards/manage.php',
-    'returns'             => __DIR__ . '/../pages/returns/process.php',
+    'student_returns'     => __DIR__ . '/../pages/loans/student_returns.php',
     // Books
     'books'               => __DIR__ . '/../pages/books/list.php',
     'books_manage'        => __DIR__ . '/../pages/books/manage_list.php',

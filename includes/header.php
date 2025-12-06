@@ -86,13 +86,7 @@ function isActiveNav($currentPage, $targetPages)
                         <span class="nav-icon">📘</span>
                         <span class="nav-label">Manage Books</span>
                     </a>
-                    <?php if ($userRole === 'ADMIN' || $userRole === 'LIBRARIAN'): ?>
-    <a href="index.php?page=returns"
-       class="nav-item<?php echo isActiveNav($page, ['returns']); ?>">
-        <span class="nav-icon">📥</span>
-        <span class="nav-label">Return Books</span>
-    </a>
-<?php endif; ?>
+    
 
                         <a href="index.php?page=reminders"
        class="nav-item<?php echo isActiveNav($page, ['reminders']); ?>">
@@ -125,9 +119,19 @@ function isActiveNav($currentPage, $targetPages)
                         <span class="nav-icon">📚</span>
                         <span class="nav-label">Browse Books</span>
                     </a>
-                    <?php if ($userRole === 'STUDENT'): ?>
-    <a href="index.php?page=returns"
-       class="nav-item<?php echo isActiveNav($page, ['returns']); ?>">
+                <?php if ($userRole === 'ADMIN' || $userRole === 'LIBRARIAN'): ?>
+    <!-- Staff see all loans in Borrow & Return -->
+    <a href="index.php?page=loans_active"
+       class="nav-item<?php echo isActiveNav($page, ['loans_active', 'loans_user']); ?>">
+        <span class="nav-icon">🔁</span>
+        <span class="nav-label">Borrow &amp; Return</span>
+    </a>
+<?php endif; ?>
+
+<?php if ($userRole === 'STUDENT'): ?>
+    <!-- Students have separate return page -->
+    <a href="index.php?page=student_returns"
+       class="nav-item<?php echo isActiveNav($page, ['student_returns']); ?>">
         <span class="nav-icon">📥</span>
         <span class="nav-label">Return Books</span>
     </a>
