@@ -86,6 +86,25 @@ function isActiveNav($currentPage, $targetPages)
                         <span class="nav-icon">📘</span>
                         <span class="nav-label">Manage Books</span>
                     </a>
+                    <?php if ($userRole === 'ADMIN' || $userRole === 'LIBRARIAN'): ?>
+    <a href="index.php?page=returns"
+       class="nav-item<?php echo isActiveNav($page, ['returns']); ?>">
+        <span class="nav-icon">📥</span>
+        <span class="nav-label">Return Books</span>
+    </a>
+<?php endif; ?>
+
+                        <a href="index.php?page=reminders"
+       class="nav-item<?php echo isActiveNav($page, ['reminders']); ?>">
+        <span class="nav-icon">📧</span>
+        <span class="nav-label">Reminders</span>
+    </a>
+    
+    <a href="index.php?page=fines"
+       class="nav-item<?php echo isActiveNav($page, ['fines']); ?>">
+        <span class="nav-icon">💰</span>
+        <span class="nav-label">Fines</span>
+    </a>    
 
                     <a href="index.php?page=loans_active"
                        class="nav-item<?php echo isActiveNav($page, ['loans_active', 'loans_user']); ?>">
@@ -106,6 +125,13 @@ function isActiveNav($currentPage, $targetPages)
                         <span class="nav-icon">📚</span>
                         <span class="nav-label">Browse Books</span>
                     </a>
+                    <?php if ($userRole === 'STUDENT'): ?>
+    <a href="index.php?page=returns"
+       class="nav-item<?php echo isActiveNav($page, ['returns']); ?>">
+        <span class="nav-icon">📥</span>
+        <span class="nav-label">Return Books</span>
+    </a>
+<?php endif; ?>
 
                     <a href="index.php?page=loans_my"
                        class="nav-item<?php echo isActiveNav($page, ['loans_my']); ?>">

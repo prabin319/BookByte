@@ -49,7 +49,10 @@ $routes = [
     'dashboard_student'   => __DIR__ . '/../pages/dashboard_student.php',
 
     // Add this line in the routes array (around line 50):
-'library_cards'       => __DIR__ . '/../pages/library_cards/manage.php',
+    'reminders'      => __DIR__ . '/../pages/reminders/manage.php',
+    'fines'          => __DIR__ . '/../pages/fines/manage.php',
+    'library_cards'       => __DIR__ . '/../pages/library_cards/manage.php',
+    'returns'             => __DIR__ . '/../pages/returns/process.php',
     // Books
     'books'               => __DIR__ . '/../pages/books/list.php',
     'books_manage'        => __DIR__ . '/../pages/books/manage_list.php',
