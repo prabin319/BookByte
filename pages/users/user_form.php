@@ -122,7 +122,7 @@ if ($isEdit) {
     }
 }
 
-// handle submit
+// handle submit - IMPORTANT: Process form BEFORE any output
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formValues['full_name'] = isset($_POST['full_name']) ? trim($_POST['full_name']) : '';
     $formValues['email']     = isset($_POST['email']) ? trim($_POST['email']) : '';
@@ -175,13 +175,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($isEdit) {
                     // UPDATE
                     $sets = [];
-                    foreach ($data as $col => $_) {
-                        $sets[] = "`$col` = :$col";
+                    foreach ($data as $column => $_) {
+                        $sets[] = "`{$column}` = :{$column}";
                     }
                     $sql = "UPDATE users SET " . implode(', ', $sets) . " WHERE id = :id LIMIT 1";
                     $stmt = $pdo->prepare($sql);
-                    foreach ($data as $col => $val) {
-                        $stmt->bindValue(':' . $col, $val);
+                    foreach ($data as $column => $val) {
+                        $stmt->bindValue(':' . $column, $val);
                     }
                     $stmt->bindValue(':id', $userId, PDO::PARAM_INT);
                     $stmt->execute();
@@ -189,19 +189,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // INSERT
                     $cols = array_keys($data);
                     $placeholders = array_map(function ($c) { return ':' . $c; }, $cols);
+
                     $sql = "INSERT INTO users (" . implode(', ', $cols) . ")
                             VALUES (" . implode(', ', $placeholders) . ")";
                     $stmt = $pdo->prepare($sql);
-                    foreach ($data as $col => $val) {
-                        $stmt->bindValue(':' . $col, $val);
+                    foreach ($data as $column => $val) {
+                        $stmt->bindValue(':' . $column, $val);
                     }
                     $stmt->execute();
                     $userId = (int)$pdo->lastInsertId();
                     $isEdit = true;
                 }
 
-                // redirect back to manage users
-                header('Location: index.php?page=users_manage');
+                // FIXED: Use JavaScript redirect instead of header()
+                // This avoids the "headers already sent" error
+                echo '<script>window.location.href = "index.php?page=users_manage";</script>';
                 exit;
             }
         } catch (PDOException $e) {
@@ -209,6 +211,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// NOW we can include header and show the page
 ?>
 <div class="dashboard">
     <div class="dashboard-header">
