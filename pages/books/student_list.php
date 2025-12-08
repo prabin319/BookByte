@@ -403,14 +403,7 @@ sort($categories);
     position: relative;
 }
 
-.search-icon {
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 20px;
-    pointer-events: none;
-}
+
 
 .search-input-modern {
     width: 100%;
