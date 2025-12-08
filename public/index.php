@@ -22,11 +22,15 @@ if ($page === 'logout') {
 
 // decide default page
 if ($user === null) {
-    // not logged in → login
-    $page = 'login';
+    // not logged in → show landing page
+    if ($page === '' || $page === 'home') {
+        $page = 'landing';
+    } elseif ($page !== 'login' && $page !== 'landing') {
+        $page = 'landing';
+    }
 } else {
     // logged in
-    if ($page === '' || $page === 'login') {
+    if ($page === '' || $page === 'login' || $page === 'landing') {
         if ($userRole === 'ADMIN') {
             $page = 'dashboard_admin';
         } elseif ($userRole === 'LIBRARIAN') {
@@ -36,10 +40,10 @@ if ($user === null) {
         }
     }
 }
-
 // route map - FIXED PATHS
 $routes = [
     // Auth
+        'landing'             => __DIR__ . '/../pages/landing.php',
     'login'               => __DIR__ . '/../pages/login.php',
 
     // Home / dashboards - CORRECTED PATHS
