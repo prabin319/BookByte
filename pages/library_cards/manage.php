@@ -1,5 +1,5 @@
 <?php
-// pages/library_cards/manage.php
+// pages/library_cards/manage.php - FIXED VERSION
 
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../config/db.php';
@@ -29,36 +29,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $validityMonths = (int)$_POST['validity_months'];
         
         try {
-            // Check if user already has an active card
-            $stmt = $pdo->prepare("
-                SELECT id FROM library_cards 
-                WHERE user_id = :user_id AND status = 'ACTIVE'
-            ");
+            // Check if user exists and is a student
+            $stmt = $pdo->prepare("SELECT id, full_name, role FROM users WHERE id = :user_id");
             $stmt->execute(['user_id' => $userId]);
+            $selectedUser = $stmt->fetch();
             
-            if ($stmt->fetch()) {
+            if (!$selectedUser) {
                 $messageType = 'error';
-                $message = 'User already has an active library card.';
+                $message = 'User not found.';
+            } elseif ($selectedUser['role'] !== 'STUDENT') {
+                $messageType = 'error';
+                $message = 'Cards can only be issued to students.';
             } else {
-                $cardNumber = generateCardNumber();
-                $issueDate = date('Y-m-d');
-                $expiryDate = date('Y-m-d', strtotime("+{$validityMonths} months"));
-                
+                // Check if user already has an active card
                 $stmt = $pdo->prepare("
-                    INSERT INTO library_cards (card_number, user_id, issue_date, expiry_date, status, issued_by)
-                    VALUES (:card_number, :user_id, :issue_date, :expiry_date, 'ACTIVE', :issued_by)
+                    SELECT id FROM library_cards 
+                    WHERE user_id = :user_id AND status = 'ACTIVE'
                 ");
+                $stmt->execute(['user_id' => $userId]);
                 
-                $stmt->execute([
-                    'card_number' => $cardNumber,
-                    'user_id' => $userId,
-                    'issue_date' => $issueDate,
-                    'expiry_date' => $expiryDate,
-                    'issued_by' => $adminId
-                ]);
-                
-                $messageType = 'success';
-                $message = "Library card {$cardNumber} issued successfully!";
+                if ($stmt->fetch()) {
+                    $messageType = 'error';
+                    $message = 'User already has an active library card.';
+                } else {
+                    $cardNumber = generateCardNumber();
+                    $issueDate = date('Y-m-d');
+                    $expiryDate = date('Y-m-d', strtotime("+{$validityMonths} months"));
+                    
+                    $stmt = $pdo->prepare("
+                        INSERT INTO library_cards (card_number, user_id, issue_date, expiry_date, status, issued_by)
+                        VALUES (:card_number, :user_id, :issue_date, :expiry_date, 'ACTIVE', :issued_by)
+                    ");
+                    
+                    $stmt->execute([
+                        'card_number' => $cardNumber,
+                        'user_id' => $userId,
+                        'issue_date' => $issueDate,
+                        'expiry_date' => $expiryDate,
+                        'issued_by' => $adminId
+                    ]);
+                    
+                    $messageType = 'success';
+                    $message = "Library card {$cardNumber} issued successfully to {$selectedUser['full_name']}!";
+                }
             }
         } catch (PDOException $e) {
             $messageType = 'error';
@@ -134,22 +147,69 @@ try {
     $cards = [];
 }
 
-// Load students without cards
-$studentsWithoutCards = [];
+// Detect column names in users table
+$userColumns = [];
 try {
+    $stmt = $pdo->query("SHOW COLUMNS FROM users");
+    $userColumns = array_column($stmt->fetchAll(), 'Field');
+} catch (PDOException $e) {
+    $userColumns = [];
+}
+
+// Detect name column
+$nameColumn = 'email'; // fallback
+if (in_array('full_name', $userColumns)) {
+    $nameColumn = 'full_name';
+} elseif (in_array('name', $userColumns)) {
+    $nameColumn = 'name';
+} elseif (in_array('first_name', $userColumns)) {
+    $nameColumn = 'first_name';
+}
+
+// Load ALL students (not just those without cards)
+$allStudents = [];
+$studentsWithCards = [];
+try {
+    // Get all students - using detected column
     $stmt = $pdo->query("
-        SELECT u.id, u.full_name, u.email
+        SELECT u.id, u.$nameColumn as full_name, u.email
         FROM users u
         WHERE u.role = 'STUDENT'
-        AND u.id NOT IN (
-            SELECT user_id FROM library_cards WHERE status = 'ACTIVE'
-        )
-        ORDER BY u.full_name
+        ORDER BY u.$nameColumn
     ");
-    $studentsWithoutCards = $stmt->fetchAll();
+    $allStudents = $stmt->fetchAll();
+    
+    // Get students who already have active cards
+    $stmt = $pdo->query("
+        SELECT DISTINCT user_id 
+        FROM library_cards 
+        WHERE status = 'ACTIVE'
+    ");
+    
+    while ($row = $stmt->fetch()) {
+        $studentsWithCards[] = $row['user_id'];
+    }
+    
 } catch (PDOException $e) {
-    $studentsWithoutCards = [];
+    $allStudents = [];
 }
+
+// Calculate stats
+$totalCards = count($cards);
+$activeCards = 0;
+$expiredCards = 0;
+
+foreach ($cards as $card) {
+    if ($card['status'] === 'ACTIVE') {
+        $activeCards++;
+    }
+    if (strtotime($card['expiry_date']) < time() && $card['status'] === 'ACTIVE') {
+        $expiredCards++;
+    }
+}
+
+$totalStudents = count($allStudents);
+$studentsWithoutCards = $totalStudents - count($studentsWithCards);
 ?>
 
 <style>
@@ -165,9 +225,6 @@ try {
     margin-bottom: 32px;
     color: white;
     box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 
 .header-content-cards h1 {
@@ -180,23 +237,6 @@ try {
     font-size: 15px;
     opacity: 0.95;
     margin: 0;
-}
-
-.btn-issue-card {
-    background: white;
-    color: #667eea;
-    padding: 12px 28px;
-    border-radius: 12px;
-    text-decoration: none;
-    font-weight: 600;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.btn-issue-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(255, 255, 255, 0.3);
 }
 
 .alert-card {
@@ -219,6 +259,42 @@ try {
     background: #fee2e2;
     color: #b91c1c;
     border: 1px solid #fecaca;
+}
+
+.alert-info {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+/* Stats Grid */
+.stats-grid-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.stat-card-simple {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    text-align: center;
+}
+
+.stat-value-simple {
+    font-size: 36px;
+    font-weight: 800;
+    color: #667eea;
+    margin-bottom: 8px;
+}
+
+.stat-label-simple {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
 }
 
 .issue-card-form {
@@ -287,6 +363,11 @@ try {
     box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
+.btn-issue:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -320,10 +401,6 @@ try {
 
 .library-card.status-suspended::before {
     background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
-}
-
-.library-card.status-lost::before {
-    background: linear-gradient(90deg, #6b7280 0%, #4b5563 100%);
 }
 
 .library-card:hover {
@@ -366,11 +443,6 @@ try {
 .badge-suspended {
     background: #fef3c7;
     color: #92400e;
-}
-
-.badge-lost {
-    background: #f3f4f6;
-    color: #4b5563;
 }
 
 .card-holder {
@@ -474,6 +546,12 @@ try {
     margin-bottom: 16px;
 }
 
+.student-has-card {
+    color: #10b981;
+    font-size: 12px;
+    margin-left: 8px;
+}
+
 @media (max-width: 768px) {
     .form-row {
         grid-template-columns: 1fr;
@@ -502,47 +580,85 @@ try {
         </div>
     <?php endif; ?>
 
+    <!-- Statistics -->
+    <div class="stats-grid-cards">
+        <div class="stat-card-simple">
+            <div class="stat-value-simple"><?php echo $totalStudents; ?></div>
+            <div class="stat-label-simple">Total Students</div>
+        </div>
+        
+        <div class="stat-card-simple">
+            <div class="stat-value-simple"><?php echo $totalCards; ?></div>
+            <div class="stat-label-simple">Cards Issued</div>
+        </div>
+        
+        <div class="stat-card-simple">
+            <div class="stat-value-simple"><?php echo $activeCards; ?></div>
+            <div class="stat-label-simple">Active Cards</div>
+        </div>
+        
+        <div class="stat-card-simple">
+            <div class="stat-value-simple"><?php echo $studentsWithoutCards; ?></div>
+            <div class="stat-label-simple">Without Cards</div>
+        </div>
+    </div>
+
     <!-- Issue New Card Form -->
-    <?php if (!empty($studentsWithoutCards)): ?>
     <div class="issue-card-form">
         <h2>📝 Issue New Library Card</h2>
-        <form method="post">
-            <input type="hidden" name="action" value="issue_card">
-            <div class="form-row">
-                <div class="form-group-card">
-                    <label class="form-label-card">Select Student</label>
-                    <select name="user_id" class="form-select-card" required>
-                        <option value="">-- Choose Student --</option>
-                        <?php foreach ($studentsWithoutCards as $student): ?>
-                            <option value="<?php echo $student['id']; ?>">
-                                <?php echo htmlspecialchars($student['full_name']); ?> (<?php echo htmlspecialchars($student['email']); ?>)
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                
-                <div class="form-group-card">
-                    <label class="form-label-card">Validity (Months)</label>
-                    <select name="validity_months" class="form-select-card" required>
-                        <option value="6">6 Months</option>
-                        <option value="12" selected>12 Months</option>
-                        <option value="24">24 Months</option>
-                        <option value="36">36 Months</option>
-                    </select>
-                </div>
-                
-                <button type="submit" class="btn-issue">Issue Card</button>
+        
+        <?php if (empty($allStudents)): ?>
+            <div class="alert-card alert-info">
+                <span style="font-size: 20px;">ℹ️</span>
+                <span>No students found in the system. Please add students first.</span>
             </div>
-        </form>
+        <?php else: ?>
+            <form method="post">
+                <input type="hidden" name="action" value="issue_card">
+                <div class="form-row">
+                    <div class="form-group-card">
+                        <label class="form-label-card">Select Student</label>
+                        <select name="user_id" class="form-select-card" required>
+                            <option value="">-- Choose Student --</option>
+                            <?php foreach ($allStudents as $student): ?>
+                                <?php $hasCard = in_array($student['id'], $studentsWithCards); ?>
+                                <option value="<?php echo $student['id']; ?>" <?php echo $hasCard ? 'style="color: #10b981;"' : ''; ?>>
+                                    <?php echo htmlspecialchars($student['full_name']); ?> 
+                                    (<?php echo htmlspecialchars($student['email']); ?>)
+                                    <?php echo $hasCard ? ' ✓ Has Card' : ''; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group-card">
+                        <label class="form-label-card">Validity (Months)</label>
+                        <select name="validity_months" class="form-select-card" required>
+                            <option value="6">6 Months</option>
+                            <option value="12" selected>12 Months</option>
+                            <option value="24">24 Months</option>
+                            <option value="36">36 Months</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn-issue">Issue Card</button>
+                </div>
+            </form>
+            
+            <?php if ($studentsWithoutCards > 0): ?>
+                <p style="margin-top: 12px; font-size: 13px; color: #6b7280;">
+                    💡 <strong><?php echo $studentsWithoutCards; ?></strong> student(s) don't have library cards yet
+                </p>
+            <?php endif; ?>
+        <?php endif; ?>
     </div>
-    <?php endif; ?>
 
     <!-- Library Cards Grid -->
     <?php if (empty($cards)): ?>
         <div class="empty-state">
             <div class="empty-icon">🎫</div>
             <h3>No library cards issued yet</h3>
-            <p>Start issuing cards to students above</p>
+            <p>Use the form above to issue cards to students</p>
         </div>
     <?php else: ?>
         <div class="cards-grid">
