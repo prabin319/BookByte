@@ -1,5 +1,5 @@
 <?php
-// pages/books/detail.php
+// pages/books/detail.php - FIXED VERSION
 
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../config/db.php';
@@ -39,10 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
         
         // Check if user already borrowed this book (and hasn't returned it)
+        // FIXED: Use returned_at instead of returned_date
         $stmt = $pdo->prepare("
             SELECT * FROM loans 
             WHERE user_id = :uid AND book_id = :bid 
-            AND (returned_date IS NULL OR returned_date = '0000-00-00' OR returned_date = '0000-00-00 00:00:00')
+            AND returned_at IS NULL
             LIMIT 1
         ");
         $stmt->execute([':uid' => $userId, ':bid' => $bookId]);
@@ -51,24 +52,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             throw new Exception('You have already borrowed this book.');
         }
         
-        // Create loan record with borrowed_date
-        $borrowedDate = date('Y-m-d H:i:s');
+        // Create loan record with loan_date
+        $loanDate = date('Y-m-d');
+        $dueDate = date('Y-m-d', strtotime('+14 days'));
         
         $stmt = $pdo->prepare("
-            INSERT INTO loans (user_id, book_id, borrowed_date, returned_date)
-            VALUES (:uid, :bid, :borrowed_date, NULL)
+            INSERT INTO loans (user_id, book_id, loan_date, due_date, returned_at)
+            VALUES (:uid, :bid, :loan_date, :due_date, NULL)
         ");
         
         $stmt->execute([
             ':uid' => $userId,
             ':bid' => $bookId,
-            ':borrowed_date' => $borrowedDate
+            ':loan_date' => $loanDate,
+            ':due_date' => $dueDate
         ]);
         
         // Update available copies
         $newCopies = $availableCopies - 1;
-        $stmt = $pdo->prepare("UPDATE books SET available_copies = :copies WHERE id = :id");
-        $stmt->execute([':copies' => $newCopies, ':id' => $bookId]);
+        $newStatus = $newCopies > 0 ? 'AVAILABLE' : 'UNAVAILABLE';
+        
+        $stmt = $pdo->prepare("
+            UPDATE books 
+            SET available_copies = :copies, status = :status 
+            WHERE id = :id
+        ");
+        $stmt->execute([
+            ':copies' => $newCopies, 
+            ':status' => $newStatus,
+            ':id' => $bookId
+        ]);
         
         // Commit transaction
         $pdo->commit();
