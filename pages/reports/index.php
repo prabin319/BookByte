@@ -4,7 +4,12 @@
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 
-requireLogin('ADMIN'); // reports are admin-only for now
+// ✅ Allow both ADMIN and LIBRARIAN
+$user = currentUser();
+$role = $user['role'] ?? '';
+if (!in_array($role, ['ADMIN', 'LIBRARIAN'], true)) {
+    requireLogin(); // This will redirect to login/dashboard
+}
 
 $pdo = getDBConnection();
 
@@ -82,7 +87,7 @@ try {
 <div class="dashboard">
     <div class="dashboard-header">
         <div>
-            <h1 class="dashboard-title">Reports &amp; Tracking</h1>
+            <h1 class="dashboard-title">📊 Reports &amp; Tracking</h1>
             <p class="dashboard-subtitle">
                 High-level overview of borrowing activity and top performers.
             </p>
@@ -120,7 +125,7 @@ try {
     <section class="card" style="margin-top:16px;">
         <div class="card-header">
             <div>
-                <h2 class="card-title">Top Borrowed Books</h2>
+                <h2 class="card-title">📚 Top Borrowed Books</h2>
                 <p class="card-subtitle">Books with the highest number of loans.</p>
             </div>
         </div>
@@ -132,14 +137,14 @@ try {
                 <thead>
                 <tr>
                     <th>Book</th>
-                    <th>Loans</th>
+                    <th>Total Loans</th>
                 </tr>
                 </thead>
                 <tbody>
                 <?php foreach ($topBooks as $row): ?>
                     <tr>
                         <td><?php echo htmlspecialchars($row['book_title'] ?? 'Unknown'); ?></td>
-                        <td><?php echo (int)($row['loan_count'] ?? 0); ?></td>
+                        <td><strong><?php echo (int)($row['loan_count'] ?? 0); ?></strong></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -151,7 +156,7 @@ try {
     <section class="card" style="margin-top:16px;">
         <div class="card-header">
             <div>
-                <h2 class="card-title">Top Borrowers</h2>
+                <h2 class="card-title">👥 Top Borrowers</h2>
                 <p class="card-subtitle">Users with the highest number of loans.</p>
             </div>
         </div>
@@ -164,7 +169,7 @@ try {
                 <tr>
                     <th>User</th>
                     <th>Email</th>
-                    <th>Loans</th>
+                    <th>Total Loans</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -176,7 +181,7 @@ try {
                     <tr>
                         <td><?php echo htmlspecialchars($name); ?></td>
                         <td><?php echo htmlspecialchars($email); ?></td>
-                        <td><?php echo (int)($row['loan_count'] ?? 0); ?></td>
+                        <td><strong><?php echo (int)($row['loan_count'] ?? 0); ?></strong></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

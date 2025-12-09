@@ -1,7 +1,6 @@
 <?php
-// pages/landing.php - Main landing page before login
+// pages/landing.php - Horizontal Scrolling Landing Page
 
-// If user is already logged in, redirect to their dashboard
 require_once __DIR__ . '/../lib/auth.php';
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -35,21 +34,18 @@ if (isLoggedIn()) {
             box-sizing: border-box;
         }
 
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow-x: hidden;
-            max-width: 100vw;
+        html {
+            scroll-behavior: smooth;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #0f172a;
             color: white;
-            position: relative;
+            overflow: hidden;
         }
 
-        /* Navigation */
+        /* Navigation - Fixed */
         .navbar {
             position: fixed;
             top: 0;
@@ -78,7 +74,6 @@ if (isLoggedIn()) {
 
         .logo-icon {
             font-size: 32px;
-            animation: float 3s ease-in-out infinite;
         }
 
         .nav-links {
@@ -92,7 +87,7 @@ if (isLoggedIn()) {
             text-decoration: none;
             font-weight: 500;
             transition: all 0.3s;
-            white-space: nowrap;
+            cursor: pointer;
         }
 
         .nav-links a:hover {
@@ -107,9 +102,6 @@ if (isLoggedIn()) {
             text-decoration: none;
             font-weight: 600;
             transition: all 0.3s;
-            border: none;
-            cursor: pointer;
-            white-space: nowrap;
         }
 
         .btn-login:hover {
@@ -117,94 +109,94 @@ if (isLoggedIn()) {
             box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
         }
 
-        /* Hero Section */
-        .hero {
-            width: 100%;
-            min-height: 100vh;
+        /* Horizontal Scroll Container */
+        .scroll-container {
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+            width: 300vw;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .scroll-container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Individual Sections - Full Screen Width */
+        .section {
+            flex: 0 0 100vw;
+            width: 100vw;
+            min-width: 100vw;
+            height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 120px 5% 80px;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            scroll-snap-align: start;
             position: relative;
-            overflow: hidden;
+            padding: 80px 5% 40px;
+            box-sizing: border-box;
         }
 
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -20%;
-            width: min(800px, 50vw);
-            height: min(800px, 50vw);
-            background: radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, transparent 70%);
-            border-radius: 50%;
-            animation: pulse 4s ease-in-out infinite;
-        }
-
-        .hero::after {
-            content: '';
-            position: absolute;
-            bottom: -50%;
-            left: -20%;
-            width: min(600px, 40vw);
-            height: min(600px, 40vw);
-            background: radial-gradient(circle, rgba(118, 75, 162, 0.15) 0%, transparent 70%);
-            border-radius: 50%;
-            animation: pulse 5s ease-in-out infinite;
+        /* Hero Section */
+        #hero {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         }
 
         .hero-content {
-            max-width: 1200px;
+            max-width: 1400px;
             width: 100%;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: clamp(40px, 8vw, 80px);
+            gap: 60px;
             align-items: center;
-            position: relative;
-            z-index: 1;
         }
 
         .hero-text h1 {
-            font-size: clamp(36px, 5vw, 64px);
+            font-size: clamp(40px, 5vw, 64px);
             font-weight: 900;
             line-height: 1.1;
             margin-bottom: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: slideInLeft 0.8s ease;
         }
 
         .hero-text p {
-            font-size: clamp(16px, 2vw, 20px);
+            font-size: clamp(18px, 2vw, 22px);
             color: rgba(255, 255, 255, 0.7);
             margin-bottom: 40px;
             line-height: 1.6;
-            animation: slideInLeft 0.8s ease 0.2s backwards;
         }
 
         .hero-buttons {
             display: flex;
-            flex-wrap: wrap;
             gap: 20px;
-            animation: slideInLeft 0.8s ease 0.4s backwards;
+            flex-wrap: wrap;
         }
 
         .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 16px 36px;
+            padding: 18px 40px;
             border-radius: 12px;
             text-decoration: none;
             font-weight: 700;
-            font-size: clamp(16px, 1.5vw, 18px);
+            font-size: 18px;
             transition: all 0.3s;
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            white-space: nowrap;
         }
 
         .btn-primary:hover {
@@ -214,16 +206,14 @@ if (isLoggedIn()) {
 
         .btn-secondary {
             background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
             color: white;
-            padding: 16px 36px;
+            padding: 18px 40px;
             border-radius: 12px;
             text-decoration: none;
             font-weight: 600;
-            font-size: clamp(16px, 1.5vw, 18px);
+            font-size: 18px;
             transition: all 0.3s;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            white-space: nowrap;
         }
 
         .btn-secondary:hover {
@@ -232,98 +222,80 @@ if (isLoggedIn()) {
         }
 
         .hero-visual {
-            position: relative;
-            animation: slideInRight 0.8s ease;
-            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
         }
 
-        .floating-card {
+        .stat-card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            padding: clamp(20px, 4vw, 40px);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            width: 100%;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
         }
 
-        .card-stat {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .card-stat:last-child {
-            margin-bottom: 0;
+        .stat-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.08);
         }
 
         .stat-icon {
-            width: clamp(50px, 6vw, 60px);
-            height: clamp(50px, 6vw, 60px);
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: clamp(24px, 3vw, 28px);
-            flex-shrink: 0;
+            font-size: 48px;
+            margin-bottom: 15px;
         }
 
-        .stat-info h3 {
-            font-size: clamp(24px, 3vw, 32px);
+        .stat-number {
+            font-size: 36px;
             font-weight: 800;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
 
-        .stat-info p {
-            font-size: clamp(12px, 1.5vw, 14px);
+        .stat-label {
+            font-size: 14px;
             color: rgba(255, 255, 255, 0.6);
         }
 
         /* Features Section */
-        .features {
-            width: 100%;
-            padding: clamp(60px, 10vw, 100px) 5%;
+        #features {
             background: #1e293b;
         }
 
-        .section-header {
-            text-align: center;
-            max-width: 700px;
-            margin: 0 auto 80px;
-            padding: 0 20px;
+        .features-content {
+            max-width: 1600px;
+            width: 100%;
         }
 
-        .section-header h2 {
-            font-size: clamp(32px, 5vw, 48px);
+        .section-title {
+            font-size: clamp(36px, 4vw, 48px);
             font-weight: 800;
+            text-align: center;
             margin-bottom: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
 
-        .section-header p {
-            font-size: clamp(16px, 2vw, 18px);
+        .section-subtitle {
+            font-size: 18px;
+            text-align: center;
             color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 50px;
         }
 
         .features-grid {
-            max-width: 1200px;
-            margin: 0 auto;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-            gap: clamp(20px, 4vw, 40px);
-            width: 100%;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
         }
 
         .feature-card {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px;
-            padding: clamp(30px, 4vw, 40px);
+            padding: 35px;
             transition: all 0.3s;
         }
 
@@ -331,181 +303,113 @@ if (isLoggedIn()) {
             transform: translateY(-10px);
             background: rgba(255, 255, 255, 0.05);
             border-color: rgba(102, 126, 234, 0.5);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
         }
 
         .feature-icon {
-            width: clamp(60px, 7vw, 70px);
-            height: clamp(60px, 7vw, 70px);
+            width: 70px;
+            height: 70px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: clamp(28px, 4vw, 36px);
-            margin-bottom: 24px;
+            font-size: 36px;
+            margin-bottom: 20px;
         }
 
         .feature-card h3 {
-            font-size: clamp(20px, 2.5vw, 24px);
-            font-weight: 700;
+            font-size: 22px;
             margin-bottom: 12px;
         }
 
         .feature-card p {
             color: rgba(255, 255, 255, 0.6);
             line-height: 1.6;
-            font-size: clamp(14px, 1.5vw, 16px);
+            font-size: 15px;
         }
 
-        /* Stats Section */
-        .stats {
-            width: 100%;
-            padding: clamp(60px, 8vw, 80px) 5%;
+        /* About/Stats Section */
+        #about {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .about-content {
+            max-width: 1400px;
+            width: 100%;
+            text-align: center;
         }
 
         .stats-grid {
-            max-width: 1200px;
-            margin: 0 auto;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-            gap: clamp(30px, 6vw, 60px);
-            text-align: center;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 50px;
+            margin: 50px 0;
         }
 
         .stat-item h3 {
-            font-size: clamp(40px, 6vw, 56px);
+            font-size: 56px;
             font-weight: 900;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .stat-item p {
-            font-size: clamp(16px, 2vw, 18px);
+            font-size: 18px;
             opacity: 0.9;
         }
 
-        /* CTA Section */
-        .cta {
-            width: 100%;
-            padding: clamp(60px, 10vw, 100px) 5%;
-            background: #0f172a;
-            text-align: center;
-        }
-
-        .cta h2 {
-            font-size: clamp(32px, 5vw, 48px);
+        .cta-text {
+            font-size: 48px;
             font-weight: 800;
             margin-bottom: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
 
-        .cta p {
-            font-size: clamp(16px, 2vw, 20px);
-            color: rgba(255, 255, 255, 0.7);
+        .cta-subtitle {
+            font-size: 20px;
+            opacity: 0.9;
             margin-bottom: 40px;
-            max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
         }
 
-        /* Footer */
-        .footer {
-            width: 100%;
-            background: #0f172a;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 40px 5%;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.5);
+        /* Scroll Indicator */
+        .scroll-indicator {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
         }
 
-        .footer p {
-            font-size: clamp(13px, 1.5vw, 14px);
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s;
         }
 
-        /* Animations */
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+        .dot.active {
+            background: white;
+            width: 30px;
+            border-radius: 6px;
         }
 
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 0.15; }
-            50% { transform: scale(1.1); opacity: 0.2; }
-        }
-
-        @keyframes slideInLeft {
-            from {
-                opacity: 0;
-                transform: translateX(-50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
+        /* Responsive */
+        @media (max-width: 1400px) {
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
-        @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        /* Responsive Breakpoints */
         @media (max-width: 968px) {
             .hero-content {
                 grid-template-columns: 1fr;
-                gap: 60px;
+                gap: 40px;
             }
 
-            .nav-links a:not(.btn-login) {
-                font-size: 14px;
-            }
-
-            .hero-buttons {
-                justify-content: center;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .navbar {
-                padding: 15px 5%;
-            }
-
-            .nav-links {
-                gap: 15px;
-            }
-
-            .nav-links a:not(.btn-login) {
-                display: none;
-            }
-
-            .btn-login {
-                padding: 10px 20px;
-                font-size: 14px;
-            }
-
-            .hero {
-                padding: 100px 5% 60px;
-            }
-
-            .hero-buttons {
-                flex-direction: column;
-                width: 100%;
-            }
-
-            .btn-primary,
-            .btn-secondary {
-                width: 100%;
-                justify-content: center;
+            .hero-visual {
+                grid-template-columns: 1fr 1fr;
             }
 
             .features-grid {
@@ -513,32 +417,36 @@ if (isLoggedIn()) {
             }
 
             .stats-grid {
-                grid-template-columns: 1fr;
-                gap: 40px;
+                grid-template-columns: 1fr 1fr;
+                gap: 30px;
+            }
+
+            .nav-links a:not(.btn-login) {
+                display: none;
             }
         }
 
-        @media (max-width: 380px) {
-            .logo {
-                font-size: 20px;
+        @media (max-width: 640px) {
+            .hero-visual {
+                grid-template-columns: 1fr;
             }
 
-            .logo-icon {
-                font-size: 28px;
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
 
-            .card-stat {
-                flex-direction: column;
-                text-align: center;
-                gap: 12px;
+            .btn-primary,
+            .btn-secondary {
+                width: 100%;
+                justify-content: center;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Navigation -->
+    <!-- Fixed Navigation -->
     <nav class="navbar">
-        <a href="index.php" class="logo">
+        <a href="#hero" class="logo">
             <span class="logo-icon">📚</span>
             BookByte
         </a>
@@ -549,124 +457,192 @@ if (isLoggedIn()) {
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="hero-content">
-            <div class="hero-text">
-                <h1>Modern Library Management Made Simple</h1>
-                <p>Streamline your library operations with BookByte - the complete solution for managing books, loans, users, and more.</p>
-                <div class="hero-buttons">
-                    <a href="index.php?page=login" class="btn-primary">
-                        Get Started
-                        <span>→</span>
-                    </a>
-                    <a href="#features" class="btn-secondary">Learn More</a>
+    <!-- Horizontal Scroll Container -->
+    <div class="scroll-container">
+        
+        <!-- Section 1: Hero -->
+        <section id="hero" class="section">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1>Modern Library Management Made Simple</h1>
+                    <p>Streamline your library operations with BookByte - the complete solution for managing books, loans, users, and more.</p>
+                    <div class="hero-buttons">
+                        <a href="index.php?page=login" class="btn-primary">
+                            Get Started
+                            <span>→</span>
+                        </a>
+                        <a href="#features" class="btn-secondary">Learn More</a>
+                    </div>
                 </div>
-            </div>
-            <div class="hero-visual">
-                <div class="floating-card">
-                    <div class="card-stat">
+                <div class="hero-visual">
+                    <div class="stat-card">
                         <div class="stat-icon">📚</div>
-                        <div class="stat-info">
-                            <h3>10,000+</h3>
-                            <p>Books Managed</p>
-                        </div>
+                        <div class="stat-number">10,000+</div>
+                        <div class="stat-label">Books Managed</div>
                     </div>
-                    <div class="card-stat">
+                    <div class="stat-card">
                         <div class="stat-icon">👥</div>
-                        <div class="stat-info">
-                            <h3>5,000+</h3>
-                            <p>Active Users</p>
-                        </div>
+                        <div class="stat-number">5,000+</div>
+                        <div class="stat-label">Active Users</div>
                     </div>
-                    <div class="card-stat">
+                    <div class="stat-card">
                         <div class="stat-icon">🔄</div>
-                        <div class="stat-info">
-                            <h3>50,000+</h3>
-                            <p>Loans Processed</p>
-                        </div>
+                        <div class="stat-number">50,000+</div>
+                        <div class="stat-label">Loans Processed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-number">24/7</div>
+                        <div class="stat-label">System Uptime</div>
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- Features Section -->
-    <section class="features" id="features">
-        <div class="section-header">
-            <h2>Powerful Features</h2>
-            <p>Everything you need to run a modern library efficiently</p>
-        </div>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">📖</div>
-                <h3>Book Management</h3>
-                <p>Easily catalog, organize, and track your entire book collection with our intuitive interface.</p>
+        <!-- Section 2: Features -->
+        <section id="features" class="section">
+            <div class="features-content">
+                <h2 class="section-title">Powerful Features</h2>
+                <p class="section-subtitle">Everything you need to run a modern library efficiently</p>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">📖</div>
+                        <h3>Book Management</h3>
+                        <p>Easily catalog, organize, and track your entire book collection with our intuitive interface.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔄</div>
+                        <h3>Smart Borrowing</h3>
+                        <p>Automated loan tracking, due date reminders, and seamless return processing.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">👥</div>
+                        <h3>User Management</h3>
+                        <p>Manage students, staff, and admins with role-based access control.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">💰</div>
+                        <h3>Fine Management</h3>
+                        <p>Automatic fine calculation for overdue books with flexible payment tracking.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📧</div>
+                        <h3>Notifications</h3>
+                        <p>Automated email and SMS reminders for due dates and overdue books.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>Reports & Analytics</h3>
+                        <p>Comprehensive reports on borrowing trends, popular books, and more.</p>
+                    </div>
+                </div>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔄</div>
-                <h3>Smart Borrowing</h3>
-                <p>Automated loan tracking, due date reminders, and seamless return processing.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">👥</div>
-                <h3>User Management</h3>
-                <p>Manage students, staff, and admins with role-based access control.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">💰</div>
-                <h3>Fine Management</h3>
-                <p>Automatic fine calculation for overdue books with flexible payment tracking.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">📧</div>
-                <h3>Notifications</h3>
-                <p>Automated email and SMS reminders for due dates and overdue books.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">📊</div>
-                <h3>Reports & Analytics</h3>
-                <p>Comprehensive reports on borrowing trends, popular books, and more.</p>
-            </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- Stats Section -->
-    <section class="stats">
-        <div class="stats-grid">
-            <div class="stat-item">
-                <h3>99.9%</h3>
-                <p>Uptime Reliability</p>
-            </div>
-            <div class="stat-item">
-                <h3>24/7</h3>
-                <p>System Availability</p>
-            </div>
-            <div class="stat-item">
-                <h3>100+</h3>
-                <p>Libraries Trust Us</p>
-            </div>
-            <div class="stat-item">
-                <h3>5★</h3>
-                <p>User Satisfaction</p>
-            </div>
-        </div>
-    </section>
+        <!-- Section 3: About/Stats -->
+        <section id="about" class="section">
+            <div class="about-content">
+                <h2 class="cta-text">Ready to Transform Your Library?</h2>
+                <p class="cta-subtitle">Join hundreds of libraries already using BookByte to streamline their operations.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <h3>99.9%</h3>
+                        <p>Uptime Reliability</p>
+                    </div>
+                    <div class="stat-item">
+                        <h3>24/7</h3>
+                        <p>System Availability</p>
+                    </div>
+                    <div class="stat-item">
+                        <h3>100+</h3>
+                        <p>Libraries Trust Us</p>
+                    </div>
+                    <div class="stat-item">
+                        <h3>5★</h3>
+                        <p>User Satisfaction</p>
+                    </div>
+                </div>
 
-    <!-- CTA Section -->
-    <section class="cta" id="about">
-        <h2>Ready to Transform Your Library?</h2>
-        <p>Join hundreds of libraries already using BookByte to streamline their operations.</p>
-        <a href="index.php?page=login" class="btn-primary">
-            Start Using BookByte
-            <span>→</span>
-        </a>
-    </section>
+                <a href="index.php?page=login" class="btn-primary" style="font-size: 20px; padding: 20px 50px;">
+                    Start Using BookByte
+                    <span>→</span>
+                </a>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <p>&copy; <?php echo date('Y'); ?> BookByte LMS. All rights reserved.</p>
-        <p style="margin-top: 10px;">Modern Library Management System</p>
-    </footer>
+                <p style="margin-top: 40px; opacity: 0.8;">
+                    &copy; <?php echo date('Y'); ?> BookByte LMS. All rights reserved.
+                </p>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Scroll Indicators -->
+    <div class="scroll-indicator">
+        <div class="dot active" onclick="scrollToSection('hero')"></div>
+        <div class="dot" onclick="scrollToSection('features')"></div>
+        <div class="dot" onclick="scrollToSection('about')"></div>
+    </div>
+
+    <script>
+        const scrollContainer = document.querySelector('.scroll-container');
+        const dots = document.querySelectorAll('.dot');
+        
+        // Smooth scroll to sections
+        function scrollToSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                const sectionIndex = Array.from(document.querySelectorAll('.section')).indexOf(section);
+                scrollContainer.scrollTo({
+                    left: sectionIndex * window.innerWidth,
+                    behavior: 'smooth'
+                });
+            }
+        }
+        
+        function updateActiveDot() {
+            const scrollPos = scrollContainer.scrollLeft;
+            const windowWidth = window.innerWidth;
+            const sectionIndex = Math.round(scrollPos / windowWidth);
+            
+            dots.forEach((dot, index) => {
+                if (index === sectionIndex) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+        }
+        
+        scrollContainer.addEventListener('scroll', updateActiveDot);
+        window.addEventListener('load', updateActiveDot);
+
+        // Handle all navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').substring(1);
+                scrollToSection(targetId);
+            });
+        });
+        
+        // Handle navbar links specifically
+        document.querySelector('.nav-links a[href="#features"]')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            scrollToSection('features');
+        });
+        
+        document.querySelector('.nav-links a[href="#about"]')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            scrollToSection('about');
+        });
+        
+        // Handle logo click
+        document.querySelector('.logo')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            scrollToSection('hero');
+        });
+    </script>
 </body>
 </html>
